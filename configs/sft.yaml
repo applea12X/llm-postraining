@@ -1,0 +1,21 @@
+# mlx-lm LoRA config: `python -m mlx_lm lora -c configs/sft.yaml`
+model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+train: true
+data: data/sft
+fine_tune_type: lora
+adapter_path: adapters/sft
+mask_prompt: true          # loss only on the assistant answer
+num_layers: 16
+batch_size: 4
+iters: 200                 # ~4-6 epochs over ~150-250 examples; watch val loss
+learning_rate: 1.0e-5
+steps_per_report: 10
+steps_per_eval: 25
+val_batches: -1
+save_every: 50
+max_seq_length: 2048
+seed: 0
+lora_parameters:
+  rank: 8
+  scale: 20.0
+  dropout: 0.0

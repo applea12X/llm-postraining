@@ -1,0 +1,12 @@
+mlx-lm
+bandit
+semgrep
+datasets
+pytest
+pyyaml
+flask
+requests
+bcrypt
+argon2-cffi
+cryptography
+pyjwt
