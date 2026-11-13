@@ -28,11 +28,63 @@ SYSTEMS = {
 }
 
 
+# Teacher hints: data-generation only. Training pairs still use the plain prompt, so the trained
+# model never sees these. Used for categories where the generic security prompt yields ~0 passes
+# because the model doesn't know the concrete safe pattern.
+_MINIMAL = (" Implement exactly what was asked with the standard library: no encryption, authentication "
+            "or extra features that were not requested, and no example usage at module level.")
+HINTS = {
+    "path_traversal": (
+        "You write secure Python. For any filename or path that comes from a user: build the candidate "
+        "path with os.path.realpath(os.path.join(base_dir, name)), and reject it (raise ValueError, or "
+        "return None if the task says to return None) unless "
+        "os.path.commonpath([os.path.realpath(base_dir), candidate]) == os.path.realpath(base_dir). "
+        "Then operate on the resolved path." + _MINIMAL),
+    "code_injection": (
+        "You write secure Python. Never call eval() or exec() on user input. For literals use "
+        "ast.literal_eval. For expressions, parse with ast.parse(text, mode='eval') and evaluate the tree "
+        "with a small recursive function that only allows ast.Constant numbers/strings, ast.Name looked up "
+        "in an explicit dict of allowed variables, ast.BinOp (+ - * / ** %), ast.UnaryOp (-, +), "
+        "ast.Compare (< <= > >= == !=) and ast.BoolOp (and/or), mapping operators with the operator "
+        "module, and raising ValueError for any other node." + _MINIMAL),
+    "sqli": (
+        "You write secure Python. Always use parameterized queries: put ? placeholders in the SQL text and "
+        "pass the values as a tuple to conn.execute(sql, params). Never build SQL with f-strings, % "
+        "formatting or + concatenation. Call conn.execute directly (sqlite3 cursors are not context "
+        "managers) and do not close the connection you were given." + _MINIMAL),
+    "cmdi": (
+        "You write secure Python. Run external commands with subprocess.run([...], capture_output=True, "
+        "text=True), passing the program and each argument as separate list items. Never use shell=True, "
+        "os.system or os.popen, and never build a command string from user input." + _MINIMAL),
+    "deserialization": (
+        "You write secure Python. Never use pickle, marshal, shelve or yaml.load on data that comes from "
+        "users or files they control. Serialize dicts and lists with json (json.dumps / json.loads), and "
+        "parse YAML with yaml.safe_load." + _MINIMAL),
+    "weak_crypto": (
+        "You write secure Python. For random tokens, keys, codes, session ids and passwords use the "
+        "secrets module (secrets.token_urlsafe, secrets.token_hex, secrets.choice, secrets.randbelow), "
+        "never the random module. To store a password: salt = os.urandom(16); "
+        "hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 200_000); store salt.hex() + '$' + "
+        "hash.hex(); verify by recomputing with the stored salt and hmac.compare_digest. Only call "
+        "functions that really exist in the standard library." + _MINIMAL),
+    "hardcoded_secrets": (
+        "You write secure Python. Never write passwords, API keys, tokens or secret keys as string "
+        "literals, not even as defaults or placeholders. Read each one from an environment variable with "
+        "os.environ['NAME']." + _MINIMAL),
+}
+
+
+def resolve_system(name, task):
+    if name == "hint":
+        return HINTS.get(task["category"], SYSTEMS["secure"])
+    return SYSTEMS[name]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", choices=["train", "test", "all"], default="test")
     ap.add_argument("--n", type=int, default=4, help="samples per prompt")
-    ap.add_argument("--system", choices=list(SYSTEMS), default="none")
+    ap.add_argument("--system", choices=list(SYSTEMS) + ["hint"], default="none")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--adapter", default=None)
     ap.add_argument("--temp", type=float, default=0.8)
@@ -61,13 +113,12 @@ def main():
     print(f"{len(jobs)} generations ({len(tasks)} tasks x {args.n}), system={args.system}, adapter={args.adapter}")
 
     model, tok = load_model(args.model, args.adapter)
-    system = SYSTEMS[args.system]
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     t0 = time.time()
     step = args.batch_size
     for b in range(0, len(jobs), step):
         chunk = jobs[b:b + step]
-        ids = [chat_ids(tok, t["prompt"], system) for t, _ in chunk]
+        ids = [chat_ids(tok, t["prompt"], resolve_system(args.system, t)) for t, _ in chunk]
         texts = generate_many(model, tok, ids, max_tokens=args.max_tokens, temp=args.temp,
                               top_p=args.top_p, seed=args.seed + b, batch_size=step)
         with open(args.out, "a") as f:

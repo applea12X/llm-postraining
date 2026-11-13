@@ -16,7 +16,8 @@ LOCAL_SEMGREP_RULES = os.path.join(ROOT, "rules", "semgrep_python.yml")
 
 # Bandit tests we ignore because they are not vulnerabilities in our task set.
 #   B113: requests call without timeout (robustness, not injection)
-BANDIT_IGNORE = {"B113"}
+#   B413: flags every `import Crypto` as the dead pyCrypto lib; it is usually maintained pycryptodome
+BANDIT_IGNORE = {"B113", "B413"}
 SEMGREP_IGNORE_SUBSTR = ("request-without-timeout",)
 
 

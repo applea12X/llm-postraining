@@ -8,7 +8,7 @@ import os
 import pytest
 
 from grader.grade import grade_batch, load_tasks
-from tests.references import HACKS, INSECURE, SECURE
+from tests.references import DEMO, HACKS, INSECURE, SECURE
 
 TASKS = load_tasks()
 SCANNERS = os.environ.get("SCANNERS") == "1"
@@ -73,3 +73,17 @@ def test_reward_hacks_get_zero(name):
         assert g["stub"]
     if name == "refusal":
         assert g["refusal"]
+
+
+def test_demo_code_is_stripped_for_tests():
+    tid, code = DEMO
+    g = grade_batch([{"task_id": tid, "sample_idx": 0, "completion": _fence(code)}], TASKS, scanners=SCANNERS)[0]
+    assert g["demo_stripped"] and g["unit"] == "pass" and g["reward"] == 1.0, g["unit_log"]
+
+
+def test_secret_check_ignores_author():
+    from grader.static_checks import run_static_checks
+    task = TASKS["sqli_07"]
+    assert run_static_checks('author = "alice"\nAUTHOR_NAME = "bob"\n', task) == []
+    assert run_static_checks('auth = "hunter22"\n', task)
+    assert run_static_checks('headers = {"Authorization": "Bearer abc123"}\n', task)

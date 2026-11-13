@@ -10,3 +10,6 @@ bcrypt
 argon2-cffi
 cryptography
 pyjwt
+passlib
+pycryptodome
+pycryptodomex

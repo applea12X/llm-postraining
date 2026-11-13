@@ -18,8 +18,9 @@ Use Python **3.12**. Two reasons: MLX wheels, and the fact that on Python 3.14 `
 | Smoke | `make smoke` | 1 min |
 | **Baseline** | `make baseline` (4 samples × 62 prompts × {plain, security system prompt}) | ~20 min |
 | Reward-hacking audit | `make audit` | instant |
-| Build data | `make data` → `data/sft/`, `data/dpo/` | instant |
-| **Train** | `make train` (LoRA, 200 iters) | ~5 min |
+| Teacher hints | `make hints` (category-specific hint prompts, used only to produce training data) | ~6 min |
+| Build data | `make data` → `data/sft/`, `data/dpo/` (shortest passing answers, clean code targets, generic security-prompt samples excluded) | instant |
+| **Train** | `make train` (LoRA, `configs/sft2.yaml`, 150 iters → `adapters/sft2`) | ~7 min |
 | **Eval** | `make eval` → `results/report.md` | ~5 min |
 | Coding regression | `make humaneval` | ~3 min |
 
@@ -56,3 +57,10 @@ Found while building the grader: Bandit by itself misses 5 of the 14 known-vulne
 - **DPO**: `make data` already writes `data/dpo/{train,valid}.jsonl` in `{prompt, chosen, rejected}` format. The rejected samples are *functional* but vulnerable. To train on them, use the community `mlx-lm-lora` package (`pip install mlx-lm-lora`) and check that it works with mlx-lm 0.32.
 - **Bigger model**: `make baseline MODEL=Qwen/Qwen2.5-Coder-7B-Instruct` (and the same `MODEL=` for the later steps).
 - **GRPO**: `grader.grade.grade_batch` is the reward function. Call it once per group of rollouts.
+
+## Runs so far
+
+| Run | Data | Result on held-out prompts (trained categories) |
+|---|---|---|
+| v1 (`adapters/sft`, `data_v1/`, `results/report_v1.md`) | 125 examples: plain + generic security prompt + hints for 2 categories, raw completions | secure ∧ functional 43% → 52% (n=56), functional fell 80% → 62% |
+| v2 (`adapters/sft2`, `data/`, `results/report.md`) | 217 examples: plain + hints for all 7 categories + v1's own passing answers; shortest, clean code | secure ∧ functional 41% → 71% (n=112), functional rose 75% → 88%; HumanEval[:40] 90% → 90% |

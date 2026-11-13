@@ -166,7 +166,8 @@ def check_eval(tree, aliases, assigns):
     return out
 
 
-SECRET_NAME = re.compile(r"(pass(wd|word)?|pwd|secret|token|api[_-]?key|apikey|access[_-]?key|private[_-]?key|auth|credential)", re.I)
+# `auth` only as its own word part (auth, api_auth, AUTH_TOKEN), never inside `author`.
+SECRET_NAME = re.compile(r"(pass(wd|word)?|pwd|secret|token|api[_-]?key|apikey|access[_-]?key|private[_-]?key|(?<![a-z])auth(?![a-z])|authorization|credential)", re.I)
 BENIGN_NAME = re.compile(r"(_url|_uri|_endpoint|_header|_name|_type|_field|_env|_var|_path|_file|_len|_length|_column|_col|_prefix|_algorithm|_alg)$", re.I)
 BENIGN_VALUE = {"bearer", "basic", "password", "passwd", "token", "secret", "hs256", "rs256", "es256",
                 "utf-8", "ascii", "none", "null", "true", "false", "username", "access_token"}

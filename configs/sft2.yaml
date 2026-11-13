@@ -1,0 +1,21 @@
+# v2: trained on data built with `make data` (hints + shortest + clean targets)
+model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+train: true
+data: data/sft
+fine_tune_type: lora
+adapter_path: adapters/sft2
+mask_prompt: true          # loss only on the assistant answer
+num_layers: 16
+batch_size: 4
+iters: 150                 # ~3 epochs over ~200 examples; v1 showed more just memorizes
+learning_rate: 1.0e-5
+steps_per_report: 10
+steps_per_eval: 25
+val_batches: -1
+save_every: 50
+max_seq_length: 2048
+seed: 0
+lora_parameters:
+  rank: 8
+  scale: 20.0
+  dropout: 0.0
